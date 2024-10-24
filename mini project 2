@@ -1,0 +1,152 @@
+-- LEVEL 1
+
+-- Question 1: Number of users with sessions
+select count (distinct (user_id)) as USUARIOS_CON_SESIONES from sql_test.sessions;
+
+
+-- Question 2: Number of chargers used by user with id 1
+
+select count (distinct charger_id) as CARGADORES_USADOS_POR_1 from sql_test.sessions
+where user_id = 1;
+
+
+-- LEVEL 2
+
+-- Question 3: Number of sessions per charger type (AC/DC):
+select type, count(type) from sql_test.chargers as a
+join sessions as b
+on a.id = b.charger_id
+group by type;
+
+-- Question 4: Chargers being used by more than one user
+
+select * from sessions;
+
+
+-- Question 5: Average session time per charger
+
+
+SELECT charger_id as CARGADOR, 
+   avg(strftime('%s', end_time) - strftime('%s', start_time))/3600 AS duracion_media_en_horas
+FROM sql_test.sessions
+group by charger_id
+order by duracion_media_en_horas desc;
+
+-- LEVEL 3
+
+-- Question 6: Full username of users that have used more than one charger in one day (NOTE: for date only consider start_time)
+select * from sessions;
+UPDATE sessions
+SET dia = strftime('%d', start_time);
+
+select * from sql_test.users;
+select name, surname,dia from sql_test.users as a
+join sessions as b
+on a.id = b.user_id
+having count(dia) >1
+order by dia;
+
+ 
+select user_id, charger_id, dia, count(dia) from sql_test.sessions
+group by dia
+having count(dia) > 1;
+
+
+-- Este no me ha salido :(
+
+-- Question 7: Top 3 chargers with longer sessions
+
+SELECT charger_id as CARGADOR, 
+   (strftime('%s', end_time) - strftime('%s', start_time))/60 AS duracion_en_minutos,
+    (strftime('%s', end_time) - strftime('%s', start_time))/3600 AS duracion_en_horas 
+FROM sql_test.sessions
+order by duracion_en_minutos desc
+limit 3;
+
+-- Question 8: Average number of users per charger (per charger in general, not per charger_id specifically)
+select *, avg(user_id) as AVERAGE_USER_PER_CHARGER from sql_test.chargers as a
+join sessions as b
+on a.id = b.charger_id
+group by charger_id;
+
+-- Question 9: Top 3 users with more chargers being used
+
+select a.id,a.name, count(b.charger_id) as cargadores_USADOS from sql_test.users as a
+join sessions as b
+on a.id = b.user_id
+group by user_id
+order by CARGADORES_USADOS desc
+limit 3;
+
+
+-- LEVEL 4
+
+-- Question 10: Number of users that have used only AC chargers, DC chargers or both
+
+
+
+select user_id,type, count(distinct type)
+from sql_test.chargers as a
+join sessions as b
+on a.id = b.charger_id
+group by user_id, type;
+
+SELECT 
+    a.id,
+    CASE 
+        WHEN COUNT(DISTINCT c.type) = 1 AND MIN(c.type) = 'AC' THEN 'Unicamente AC'
+        WHEN COUNT(DISTINCT c.type) = 1 AND MIN(c.type) = 'DC' THEN 'Unicamente DC'
+        WHEN COUNT(DISTINCT c.type) > 1 THEN 'Ambos'
+    END AS charger_usage, a.name
+FROM 
+    sql_test.users AS a
+JOIN 
+    sql_test.sessions AS b ON a.id = b.user_id
+JOIN 
+    sql_test.chargers AS c ON b.charger_id = c.id
+GROUP BY 
+    a.id
+ORDER BY 
+    a.id ASC;
+    
+-- Entiendo como lo hace, pero no porque lo hace, he usado ayuda de la IA
+
+-- Question 11: Monthly average number of users per charger
+select charger_id, round(avg(user_id),2) as usuarios_medios from sql_test.sessions
+group by charger_id;
+
+
+-- Question 12: Top 3 users per charger (for each charger, number of sessions)
+
+select charger_id, user_id, count(*) as veces_usado from sql_test.sessions
+group by charger_id, user_id
+order by charger_id, veces_usado desc,user_id
+;
+
+
+with top3 AS(select charger_id, user_id,count(id) usos, row_number()over(partition by charger_id order by count(id)desc) AS rank
+From sessions
+group by charger_id, user_id)
+select charger_id, user_id, usos from top3
+where rank <4
+order by charger_id asc, usos desc;
+
+
+
+-- LEVEL 5
+
+-- Question 13: Top 3 users with longest sessions per month (consider the month of start_time)
+select *,(strftime('%s', end_time) - strftime('%s', start_time))/3600 AS horas_sesion  from sessions
+order by horas_sesion desc
+limit 3;    
+
+-- entiendo que esta mal porque solo hay 1 mes...
+
+-- Question 14. Average time between sessions for each charger for each month (consider the month of start_time)
+select * from sessions
+order by charger_id, end_time asc;
+
+
+
+-- el cargador se puede usar por mas de un usuario a la vez, por este motivo no se puede calcular el tiempo entre sesiones, algunas veces se puede calcular el tiempo pero no he conseguido
+-- plantear como calcular cuando un cargador esta libre y ningun usuario lo esta usando.
